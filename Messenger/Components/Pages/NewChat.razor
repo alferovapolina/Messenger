@@ -11,14 +11,14 @@
 
 @inject NavigationManager navigation
 <PageTitle>Новый чат</PageTitle>
-@if (userId == null)
+@if (userId != null)
 {
 	<h1>Введите имя чата</h1>
 	<p>
 		<input id="chatname" name="chatname" type=" text" @bind-value="@chatname" />
 	</p>
 	<button @onclick="AddButton_Click">
-		Логин/Регистрация
+		Добавить чат
 	</button>
 }
 @code {
@@ -32,7 +32,7 @@
 	{
 		if(firstRender)
 		{
-			var result = await session.GetAsync<int>("UserId");
+			var result = await session.GetAsync<int>("userId");
 			if(result.Success)
 			{
 				userId = result.Value;

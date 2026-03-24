@@ -15,7 +15,7 @@
 
 @if (initialized && userId == null)
 {
-	<h1>Введите имя чата</h1>
+	<h1>Введите имя пользователя</h1>
 	<p>
 		<input id="username" name="username" type=" text" @bind-value="@username" />
 	</p>
@@ -45,9 +45,9 @@
 
 		if (userId != null)
 		{
-			navigation.NavigateTo($"/login");
+			navigation.NavigateTo($"/");
 		}
-		
+
 		if (!initialized)
 		{
 			using ApplicationContext db = dbFactory.CreateDbContext();
@@ -80,7 +80,7 @@
 
 		await session.SetAsync("userId",userId.Value);
 
-		navigation.NavigateTo("/");
+		navigation.NavigateTo( $"/");
 	}
 
 }

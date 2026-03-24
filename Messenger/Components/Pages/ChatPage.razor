@@ -4,13 +4,123 @@
 @rendermode InteractiveServer
 
 @using Messenger.DataModels
+@using Microsoft.EntityFrameworkCore
 @inject ApplicationContextFactory dbFactory
-
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 @inject ProtectedSessionStorage session
-<h3>Chat ID = @chatId</h3>
-@code {
-	[Parameter]
-	public int chatId { get; set; }
+@inject NavigationManager navigation
 
+<h3>Chat ID = @chatId</h3>
+
+@if (userId != null)
+{
+    <div>
+        <h4>Сообщения:</h4>
+        <div>
+            @if (messages != null && messages.Any())
+            {
+                @foreach (var message in messages.OrderBy(m => m.Time))
+                {
+                    <div>
+                        <strong>@message.Sender.Name:</strong>
+                        <span>@message.TextMessage</span>
+                        <span>@message.Time.ToString("HH:mm")</span>
+                    </div>
+                }
+            }
+            else
+            {
+                <p>Нет сообщений</p>
+            }
+        </div>
+    </div>
+
+    <div>
+        <h4>Введите текст сообщения:</h4>
+        <p>
+            <input type="text" @bind-value="@messageText" />
+        </p>
+        <button @onclick="SendMessage_Click">
+            Отправить сообщение
+        </button>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int chatId { get; set; }
+
+    string messageText = "";
+    int? userId = null;
+    bool initialized = false;
+    List<Message> messages = new List<Message>();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var result = await session.GetAsync<int>("userId");
+            if (result.Success)
+            {
+                userId = result.Value;
+            }
+
+            if (userId != null)
+            {
+                await LoadMessages();
+            }
+
+            initialized = true;
+            StateHasChanged();
+        }
+
+        if (userId == null && initialized)
+        {
+            navigation.NavigateTo($"/login");
+            return;
+        }
+    }
+
+    private async Task LoadMessages()
+    {
+        using ApplicationContext db = dbFactory.CreateDbContext();
+
+        var chatUser = await db.ChatUsers
+            .AnyAsync(cu => cu.UserId == userId && cu.ChatId == chatId);
+
+        if (!chatUser)
+        {
+            navigation.NavigateTo("/");
+            return;
+        }
+
+        messages = await db.Messages
+            .Include(m => m.Sender)
+            .Where(m => m.ChatId == chatId)
+            .OrderBy(m => m.Time)
+            .ToListAsync();
+    }
+
+    private async Task SendMessage_Click(MouseEventArgs args)
+    {
+        if (string.IsNullOrWhiteSpace(messageText))
+            return;
+
+        using ApplicationContext db = dbFactory.CreateDbContext();
+
+        var message = new Message()
+        {
+            ChatId = chatId,
+            SenderId = userId.Value,
+            TextMessage = messageText,
+            Time = DateTime.UtcNow  
+        };
+
+        db.Messages.Add(message);
+        await db.SaveChangesAsync();
+
+        messageText = "";
+        await LoadMessages();
+        StateHasChanged();
+    }
 }
