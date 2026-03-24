@@ -1,0 +1,91 @@
+﻿@page "/"
+@rendermode InteractiveServer
+
+@using Messenger.DataModels
+@inject ApplicationContextFactory dbFactory
+
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedSessionStorage session
+
+@inject NavigationManager navigation
+
+<PageTitle>Home</PageTitle>
+
+@if(@userId == null)
+{
+	<p>Загрузка...</p>
+}
+else
+{
+
+	<h1>Доступные чаты</h1>
+
+	<table>
+
+	@foreach(var chat in chats)
+	{
+		<tr>
+			<td>
+					<a href="/chat/@chat.Id"> @chat.Name</a>
+			</td>
+		</tr>
+	}
+	</table>
+	<button @onclick= "NewChatButton_Click">Создать новый чат</button>
+}
+@code
+{
+	Chat[] chats = new Chat[0];
+	int? userId = null;
+	User? user = null;
+	bool initialezed = false;
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{	
+		if (firstRender)
+		{
+			var result = await session.GetAsync<int>("userId");
+			if (result.Success)
+			{
+				userId = result.Value;
+			}
+			StateHasChanged();
+		}
+		using ApplicationContext db = dbFactory.CreateDbContext();
+
+		if(userId == null)
+		{
+
+			navigation.NavigateTo($"/login");
+
+			return;
+		}
+		if(user == null)
+		{
+			user = db.Users.Where(u => u.Id == userId).Single();
+			StateHasChanged();
+		}
+		if (!initialezed)
+		{
+			initialezed = true;	
+
+			chats = db.ChatUsers
+				.Where(u => u.UserId == userId)
+				.Select(u => u.Chat)
+				.ToArray();
+
+			StateHasChanged();
+		}
+
+
+	}
+
+	protected override async Task OnParametersSetAsync()
+	{
+		await base.OnParametersSetAsync();
+	}
+	private void NewChatButton_Click(MouseEventArgs args)
+	{
+		navigation.NavigateTo($"/new-chat");
+	}
+}

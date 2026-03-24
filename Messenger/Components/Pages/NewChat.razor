@@ -1,0 +1,84 @@
+﻿@page "/new-chat"
+@attribute [StreamRendering]
+
+@rendermode InteractiveServer
+
+@using Messenger.DataModels
+@inject ApplicationContextFactory dbFactory
+
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedSessionStorage session
+
+@inject NavigationManager navigation
+<PageTitle>Новый чат</PageTitle>
+@if (userId == null)
+{
+	<h1>Введите имя чата</h1>
+	<p>
+		<input id="chatname" name="chatname" type=" text" @bind-value="@chatname" />
+	</p>
+	<button @onclick="AddButton_Click">
+		Логин/Регистрация
+	</button>
+}
+@code {
+	string chatname = "";
+
+	int? userId = null;
+
+	bool initialized = false;
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if(firstRender)
+		{
+			var result = await session.GetAsync<int>("UserId");
+			if(result.Success)
+			{
+				userId = result.Value;
+			}
+
+			initialized = true;
+			StateHasChanged();
+		}
+
+		if(userId == null)
+		{
+			navigation.NavigateTo($"/login");
+			return;
+		}
+	}
+	private async Task AddButton_Click(MouseEventArgs args)
+	{
+		using ApplicationContext db = dbFactory.CreateDbContext();
+
+		var chat = db.Chats.Where(u => u.Name.ToLower() == chatname.ToLower()).SingleOrDefault();
+		if (chat == null)
+		{
+			chat = new Chat()
+				{
+					Name = chatname
+				};
+
+			db.Chats.Add(chat);
+			db.SaveChanges();
+		}
+
+		var chatuser = db.ChatUsers
+			.Where(cu => cu.UserId == userId && cu.ChatId == chat.Id)
+			.SingleOrDefault();
+
+		if(chatuser == null)
+		{
+			chatuser = new ChatUser()
+				{
+					UserId = userId.Value,
+					ChatId = chat.Id
+				};
+			db.ChatUsers.Add(chatuser);
+			db.SaveChanges();
+		}
+
+		navigation.NavigateTo("/");
+	}
+}

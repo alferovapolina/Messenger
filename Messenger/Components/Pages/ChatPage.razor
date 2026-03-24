@@ -1,0 +1,16 @@
+﻿@page "/chat/{chatId:int}"
+@attribute [StreamRendering]
+
+@rendermode InteractiveServer
+
+@using Messenger.DataModels
+@inject ApplicationContextFactory dbFactory
+
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedSessionStorage session
+<h3>Chat ID = @chatId</h3>
+@code {
+	[Parameter]
+	public int chatId { get; set; }
+
+}
