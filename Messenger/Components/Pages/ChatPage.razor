@@ -9,6 +9,7 @@
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 @inject ProtectedSessionStorage session
 @inject NavigationManager navigation
+@implements IDisposable
 
 <h3>Chat ID = @chatId</h3>
 
@@ -16,7 +17,7 @@
 {
     <div>
         <h4>Сообщения:</h4>
-        <div>
+        <div style="max-height: 400px; overflow-y: auto;">
             @if (messages != null && messages.Any())
             {
                 @foreach (var message in messages.OrderBy(m => m.Time))
@@ -38,7 +39,7 @@
     <div>
         <h4>Введите текст сообщения:</h4>
         <p>
-            <input type="text" @bind-value="@messageText" />
+            <input type="text" @bind-value="@messageText" @bind-value:event="oninput" />
         </p>
         <button @onclick="SendMessage_Click">
             Отправить сообщение
@@ -54,6 +55,8 @@
     int? userId = null;
     bool initialized = false;
     List<Message> messages = new List<Message>();
+    private System.Timers.Timer? _timer;
+    private int lastMessageCount = 0;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -68,6 +71,7 @@
             if (userId != null)
             {
                 await LoadMessages();
+                StartAutoRefresh();
             }
 
             initialized = true;
@@ -78,6 +82,34 @@
         {
             navigation.NavigateTo($"/login");
             return;
+        }
+    }
+
+    private void StartAutoRefresh()
+    {
+        _timer = new System.Timers.Timer(1000);
+        _timer.Elapsed += async (sender, e) => await OnTimerTick();
+        _timer.AutoReset = true;
+        _timer.Start();
+    }
+
+    private async Task OnTimerTick()
+    {
+        try
+        {
+            using ApplicationContext db = dbFactory.CreateDbContext();
+            var newMessageCount = await db.Messages
+                .CountAsync(m => m.ChatId == chatId);
+
+            if (newMessageCount != lastMessageCount)
+            {
+                await LoadMessages();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при обновлении: {ex.Message}");
         }
     }
 
@@ -99,6 +131,8 @@
             .Where(m => m.ChatId == chatId)
             .OrderBy(m => m.Time)
             .ToListAsync();
+
+        lastMessageCount = messages.Count;
     }
 
     private async Task SendMessage_Click(MouseEventArgs args)
@@ -113,7 +147,7 @@
             ChatId = chatId,
             SenderId = userId.Value,
             TextMessage = messageText,
-            Time = DateTime.UtcNow  
+            Time = DateTime.UtcNow
         };
 
         db.Messages.Add(message);
@@ -121,6 +155,12 @@
 
         messageText = "";
         await LoadMessages();
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        _timer?.Stop();
+        _timer?.Dispose();
     }
 }
