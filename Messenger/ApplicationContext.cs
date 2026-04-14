@@ -27,7 +27,7 @@ public class ApplicationContext : DbContext
     {
         if (!optionsBuilder.IsConfigured)
         {
-            optionsBuilder.UseNpgsql("User ID=postgres;Password=postgres;Host=localhost;Port=5432;Database=messenger;Pooling=true;Enlist=true;")
+            optionsBuilder.UseNpgsql("User ID=postgres;Password=postgres;Host=postgres;Port=5432;Database=messenger;Pooling=true;Enlist=true;")
             .UseSnakeCaseNamingConvention();
         }
     }

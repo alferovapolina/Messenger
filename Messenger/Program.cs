@@ -2,6 +2,7 @@ using Messenger.DataModels;
 using Messenger.Components;
 using Microsoft.EntityFrameworkCore.Design;
 using Messenger;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,5 +30,10 @@ app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+ApplicationContextFactory factory = new ApplicationContextFactory();
+using (var context = factory.CreateDbContext())
+{
+    context.Database.Migrate();
+}
 
 app.Run();
